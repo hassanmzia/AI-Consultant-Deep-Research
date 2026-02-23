@@ -39,6 +39,7 @@ export default function FileViewer({
   const [xlsxData, setXlsxData] = useState<SheetData[] | null>(null);
   const [activeSheet, setActiveSheet] = useState(0);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [officeViewerError, setOfficeViewerError] = useState(false);
 
   const normalizedType = fileType.toLowerCase();
   const isPdf = normalizedType === "pdf";
@@ -53,6 +54,7 @@ export default function FileViewer({
     setXlsxData(null);
     setActiveSheet(0);
     setPdfBlobUrl(null);
+    setOfficeViewerError(false);
 
     let createdBlobUrl: string | null = null;
 
@@ -120,9 +122,9 @@ export default function FileViewer({
 
   if (!isOpen) return null;
 
-  const getOfficeViewerUrl = () => {
+  const getViewerUrl = () => {
     const encodedUrl = encodeURIComponent(url);
-    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
+    return `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
   };
 
   const handleDownload = async () => {
@@ -254,14 +256,47 @@ export default function FileViewer({
       );
     }
 
-    // DOCX, PPTX - Use Microsoft Office Online Viewer
+    // DOCX, PPTX - Use Google Docs Viewer with download fallback
     if (isOfficeFile) {
+      if (officeViewerError) {
+        return (
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <Presentation className="w-12 h-12 text-orange-500" />
+            <div className="text-center">
+              <h3 className="text-lg font-semibold mb-2">Preview Unavailable</h3>
+              <p className="text-sm text-text-muted max-w-md">
+                This file cannot be previewed in the browser. Please download it to view.
+              </p>
+            </div>
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Download {fileType.toUpperCase()} File
+            </button>
+          </div>
+        );
+      }
+
       return (
         <iframe
-          src={getOfficeViewerUrl()}
+          src={getViewerUrl()}
           className="w-full h-full border-0 rounded-lg"
           title={title || "Document Preview"}
           allowFullScreen
+          onError={() => setOfficeViewerError(true)}
+          onLoad={(e) => {
+            // Detect empty iframe (viewer failed silently)
+            try {
+              const iframe = e.target as HTMLIFrameElement;
+              if (iframe.contentDocument?.title === "") {
+                setOfficeViewerError(true);
+              }
+            } catch {
+              // Cross-origin iframe - viewer loaded (this is expected/good)
+            }
+          }}
         />
       );
     }
