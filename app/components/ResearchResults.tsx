@@ -18,6 +18,8 @@ import {
   Check,
   Send,
   CornerDownRight,
+  Copy,
+  FileDown,
 } from "lucide-react";
 import { useAuthStore } from "@/app/stores/auth-store";
 import { FileIcon, defaultStyles } from "react-file-icon";
@@ -130,10 +132,12 @@ export default function ResearchResults({ result, onCancel, onReset, onFollowUp,
       });
 
       const shareUrl = `${window.location.origin}/?research=${result.task_id}`;
-      await navigator.clipboard.writeText(shareUrl);
+      const copied = await copyToClipboard(shareUrl);
 
-      setShareSuccess(true);
-      setTimeout(() => setShareSuccess(false), 2000);
+      if (copied) {
+        setShareSuccess(true);
+        setTimeout(() => setShareSuccess(false), 2000);
+      }
     } catch (error) {
       console.error("Error sharing report:", error);
     } finally {
@@ -158,6 +162,54 @@ export default function ResearchResults({ result, onCancel, onReset, onFollowUp,
     } finally {
       setIsSubmittingFollowUp(false);
     }
+  };
+
+  // Clipboard copy with fallback for HTTP (non-secure) contexts
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch { /* fall through */ }
+    }
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return success;
+    } catch {
+      return false;
+    }
+  };
+
+  // Report export states
+  const [reportCopied, setReportCopied] = useState(false);
+
+  const handleCopyReport = async () => {
+    if (!result?.output) return;
+    const success = await copyToClipboard(result.output);
+    if (success) {
+      setReportCopied(true);
+      setTimeout(() => setReportCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadReport = () => {
+    if (!result?.output) return;
+    const blob = new Blob([result.output], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "research-report.md";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const reportContent = showReport && result?.output ? result.output : "";
@@ -364,13 +416,29 @@ export default function ResearchResults({ result, onCancel, onReset, onFollowUp,
                   )}
                 </button>
                 {showReport && (
-                  <button
-                    onClick={() => setReportFullscreen(true)}
-                    className="p-1 rounded hover:bg-surface-hover transition-colors text-text-muted hover:text-foreground"
-                    title="Full screen"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setReportFullscreen(true)}
+                      className="p-1 rounded hover:bg-surface-hover transition-colors text-text-muted hover:text-foreground"
+                      title="Full screen"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={handleCopyReport}
+                      className="p-1 rounded hover:bg-surface-hover transition-colors text-text-muted hover:text-foreground"
+                      title={reportCopied ? "Copied!" : "Copy report"}
+                    >
+                      {reportCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={handleDownloadReport}
+                      className="p-1 rounded hover:bg-surface-hover transition-colors text-text-muted hover:text-foreground"
+                      title="Download as Markdown"
+                    >
+                      <FileDown className="w-3.5 h-3.5" />
+                    </button>
+                  </>
                 )}
               </div>
               {showReport && reportContent && (
