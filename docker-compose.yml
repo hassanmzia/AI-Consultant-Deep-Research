@@ -1,0 +1,26 @@
+services:
+  consultralph:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_APP_MODE=${NEXT_PUBLIC_APP_MODE:-self-hosted}
+        - NEXT_PUBLIC_VALYU_CLIENT_ID=${NEXT_PUBLIC_VALYU_CLIENT_ID:-}
+        - NEXT_PUBLIC_VALYU_AUTH_URL=${NEXT_PUBLIC_VALYU_AUTH_URL:-}
+        - NEXT_PUBLIC_REDIRECT_URI=${NEXT_PUBLIC_REDIRECT_URI:-}
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-}
+        - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}
+        - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-}
+    container_name: consultralph
+    ports:
+      - "172.168.1.95:3022:3000"
+    environment:
+      - NODE_ENV=production
+      - VALYU_API_KEY=${VALYU_API_KEY}
+      - NEXT_PUBLIC_APP_MODE=${NEXT_PUBLIC_APP_MODE:-self-hosted}
+      - VALYU_CLIENT_SECRET=${VALYU_CLIENT_SECRET:-}
+      - VALYU_APP_URL=${VALYU_APP_URL:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+    env_file:
+      - .env
+    restart: unless-stopped
